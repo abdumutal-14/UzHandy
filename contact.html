@@ -1,1 +1,68 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Contact UzHandy USA LLC</title><meta name="description" content="Call, text or send a project message to UzHandy USA LLC."><link rel="canonical" href="https://uzhandy.us/contact"><link rel="stylesheet" href="site.css"></head><body><header class="header"><div class="wrap nav"><a class="brand" href="index.html"><span class="brandmark">UH</span><span>UZHANDY <small>USA LLC</small></span></a><nav class="links"><a href="services.html">Services</a><a href="projects.html">Projects</a><a href="reviews.html">Reviews</a><a href="about.html">About</a><a class="btn red" href="free-estimate.html">Free Estimate</a></nav><button class="menu" id="menuBtn">☰</button></div></header><nav class="drawer" id="drawer"><a href="index.html">Home</a><a href="services.html">Services</a><a href="projects.html">Projects</a><a href="reviews.html">Reviews</a><a href="service-areas.html">Service Areas</a><a href="about.html">About</a><a href="free-estimate.html">Free Estimate</a></nav><main><section class="hero"><div class="wrap"><div class="eyebrow" style="color:#9fc0d9">Contact</div><h1>Let's talk about your project.</h1><p>Call, text, or send a message. For project pricing, the photo estimate form is the fastest structured option.</p></div></section><section><div class="wrap contact-grid"><div class="contact-card"><h2 style="font-size:2.2rem">Direct contact</h2><a href="tel:+13034190338">☎ Call 303-419-0338</a><a href="sms:+13034190338">💬 Text UzHandy</a><a href="free-estimate.html">📷 Send project photos</a><p style="color:#c3ccd8">Service availability and exact coverage can be confirmed when you contact UzHandy.</p></div><form class="form" data-demo><div class="grid2"><div class="field"><label>Name</label><input required autocomplete="name"></div><div class="field"><label>Phone</label><input required type="tel" autocomplete="tel"></div></div><div class="field"><label>Email</label><input type="email" autocomplete="email"></div><div class="field"><label>Message</label><textarea required placeholder="How can we help?"></textarea></div><button class="btn red" type="submit">Send Message</button><p id="formMsg" hidden style="font-weight:800;color:#257048">Demo message saved. Connect a backend before launch to deliver messages.</p></form></div></section></main><footer class="footer"><div class="wrap"><b>UZHANDY USA LLC</b><p>uzhandy.us</p></div></footer><div class="mobilebar"><a href="tel:+13034190338">☎<br>CALL</a><a href="sms:+13034190338">💬<br>TEXT</a><a href="free-estimate.html">FREE ESTIMATE</a></div><script src="site.js"></script></body></html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Contact UzHandy USA LLC</title><meta name="description" content="Call, text or send a project message to UzHandy USA LLC."><link rel="canonical" href="https://uzhandy.us/contact"><link rel="stylesheet" href="site.css"></head><body><header class="header"><div class="wrap nav"><a class="brand" href="index.html"><span class="brandmark">UH</span><span>UZHANDY <small>USA LLC</small></span></a><nav class="links"><a href="services.html">Services</a><a href="projects.html">Projects</a><a href="reviews.html">Reviews</a><a href="about.html">About</a><a class="btn red" href="free-estimate.html">Free Estimate</a></nav><button class="menu" id="menuBtn">☰</button></div></header><nav class="drawer" id="drawer"><a href="index.html">Home</a><a href="services.html">Services</a><a href="projects.html">Projects</a><a href="reviews.html">Reviews</a><a href="service-areas.html">Service Areas</a><a href="about.html">About</a><a href="free-estimate.html">Free Estimate</a></nav><main><section class="hero"><div class="wrap"><div class="eyebrow" style="color:#9fc0d9">Contact</div><h1>Let's talk about your project.</h1><p>Call, text, or send a message. For project pricing, the photo estimate form is the fastest structured option.</p></div></section><section><div class="wrap contact-grid"><div class="contact-card"><h2 style="font-size:2.2rem">Direct contact</h2><a href="tel:+13034190338">☎ Call 303-419-0338</a><a href="sms:+13034190338">💬 Text UzHandy</a><a href="free-estimate.html">📷 Send project photos</a><p style="color:#c3ccd8">Service availability and exact coverage can be confirmed when you contact UzHandy.</p></div><form class="form" id="contactForm"><div class="grid2"><div class="field"><label>Name</label><input id="contactName" required autocomplete="name"></div><div class="field"><label>Phone</label><input id="contactPhone" required type="tel" autocomplete="tel"></div></div><div class="field"><label>Email</label><input id="contactEmail" type="email" autocomplete="email"></div><div class="field"><label>Message</label><textarea id="contactMessage" required placeholder="How can we help?"></textarea></div><button class="btn red" type="submit">Send Message</button><p id="formMsg" hidden style="font-weight:800;color:#257048"></p></form></div></section></main><footer class="footer"><div class="wrap"><b>UZHANDY USA LLC</b><p>uzhandy.us</p></div></footer><div class="mobilebar"><a href="tel:+13034190338">☎<br>CALL</a><a href="sms:+13034190338">💬<br>TEXT</a><a href="free-estimate.html">FREE ESTIMATE</a></div>
+<script src="config.js"></script>
+<script>
+const contactForm=document.getElementById('contactForm');
+if(contactForm){
+  contactForm.addEventListener('submit',async e=>{
+    e.preventDefault();
+
+    const btn=contactForm.querySelector('button[type="submit"]');
+    const msg=document.getElementById('formMsg');
+    const cfg=window.UZHANDY_CONFIG||{};
+
+    const name=document.getElementById('contactName').value.trim();
+    const phone=document.getElementById('contactPhone').value.trim();
+    const email=document.getElementById('contactEmail').value.trim();
+    const message=document.getElementById('contactMessage').value.trim();
+
+    btn.disabled=true;
+    btn.textContent='Sending...';
+    msg.hidden=true;
+
+    try{
+      if(!cfg.supabaseUrl||!cfg.supabaseAnonKey){
+        throw new Error('Website configuration is missing.');
+      }
+
+      const details=(email ? 'Email: '+email+'\n\n' : '') + message;
+
+      const res=await fetch(cfg.supabaseUrl+'/rest/v1/rpc/create_estimate_request',{
+        method:'POST',
+        headers:{
+          apikey:cfg.supabaseAnonKey,
+          Authorization:'Bearer '+cfg.supabaseAnonKey,
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          p_name:name,
+          p_phone:phone,
+          p_service:'contact-message',
+          p_zip_code:'',
+          p_details:details,
+          p_preferred_contact:email ? 'Email / Phone' : 'Phone'
+        })
+      });
+
+      if(!res.ok){
+        let detail='';
+        try{detail=(await res.json())?.message||''}catch(_){}
+        throw new Error(detail||'Could not send message.');
+      }
+
+      msg.hidden=false;
+      msg.style.color='#257048';
+      msg.textContent='✓ Message sent successfully.';
+      contactForm.reset();
+    }catch(err){
+      console.error(err);
+      msg.hidden=false;
+      msg.style.color='#b33631';
+      msg.textContent='Could not send the message. '+(err?.message||'Please try again.');
+    }finally{
+      btn.disabled=false;
+      btn.textContent='Send Message';
+    }
+  });
+}
+</script>
+<script src="site.js"></script></body></html>
