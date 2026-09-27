@@ -1,0 +1,127 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Free Estimate | UzHandy USA LLC</title><meta name="description" content="Send UzHandy your project details and photos from your phone."><meta name="theme-color" content="#172033"><link rel="canonical" href="https://uzhandy.us/free-estimate"><link rel="stylesheet" href="site.css"></head><body><header class="header"><div class="wrap nav"><a class="brand" href="index.html"><span class="brandmark">UH</span><span>UZHANDY <small>USA LLC</small></span></a><nav class="links"><a href="services.html">Services</a><a href="projects.html">Projects</a><a href="reviews.html">Reviews</a><a href="about.html">About</a><a class="btn red" href="free-estimate.html">Free Estimate</a></nav><button class="menu" id="menuBtn" aria-label="Menu">☰</button></div></header><nav class="drawer" id="drawer"><a href="index.html">Home</a><a href="services.html">Services</a><a href="projects.html">Projects</a><a href="reviews.html">Reviews</a><a href="about.html">About</a><a href="free-estimate.html">Get Free Estimate</a></nav><main><section class="hero" style="padding-bottom:50px"><div class="wrap"><div class="eyebrow" style="color:#9fc0d9">Free Estimate</div><h1>Show us what needs fixing.</h1><p style="max-width:650px">Take photos with your phone or choose existing images and send your project details.</p></div></section><section><div class="wrap" style="max-width:780px"><form class="form" data-demo><div class="grid2"><div class="field"><label>Name</label><input required autocomplete="name" placeholder="Your name"></div><div class="field"><label>Phone</label><input required type="tel" autocomplete="tel" placeholder="(303) 000-0000"></div></div><div class="field"><label>Service</label><select id="service"><option value="general-handyman">General handyman</option><option value="door-repair">Door repair / installation</option><option value="tv-mounting">TV mounting</option><option value="furniture-assembly">Furniture assembly</option><option value="drywall-repair">Drywall repair</option><option value="installation-assembly">Installation & assembly</option><option>Something else</option></select></div><div class="grid2"><div class="field"><label>ZIP Code</label><input inputmode="numeric" autocomplete="postal-code" placeholder="ZIP code"></div><div class="field"><label>Preferred contact</label><select><option>Text</option><option>Call</option><option>Email</option></select></div></div><div class="field"><label>Project details</label><textarea required placeholder="Tell us what needs to be done..."></textarea></div><div class="field"><label>Project photos</label><div class="upload"><input type="file" accept="image/*" multiple capture="environment"><p>Take a photo or choose from your phone. Up to 5 photos, 10 MB each.</p></div></div><button class="btn red" style="width:100%" type="submit">Send My Request</button><p id="formMsg" hidden style="text-align:center;font-weight:800;color:#257048"></p></form></div></section></main><script src="config.js"></script><script>
+const q=new URLSearchParams(location.search).get('service');
+if(q){const s=document.getElementById('service');if([...s.options].some(o=>o.value===q))s.value=q}
+async function sendEstimateForm(form,msg,btn){
+  const name=form.querySelector('[autocomplete="name"]')?.value?.trim()||'';
+  const phone=form.querySelector('[autocomplete="tel"]')?.value?.trim()||'';
+  const service=form.querySelector('#service')?.value||form.querySelector('select')?.value||'general-handyman';
+  const zip=form.querySelector('[autocomplete="postal-code"]')?.value?.trim()||form.querySelector('#zip')?.value?.trim()||'';
+  const details=form.querySelector('textarea')?.value?.trim()||'';
+  const selects=[...form.querySelectorAll('select')];
+  const preferred=form.querySelector('#contactMethod')?.value||selects[1]?.value||'Text';
+  const photoInput=form.querySelector('input[type="file"]');
+  const photos=[...(photoInput?.files||[])];
+  const cfg=window.UZHANDY_CONFIG||{};
+
+  if(!cfg.supabaseUrl||!cfg.supabaseAnonKey) throw new Error('Supabase configuration is missing.');
+  if(photos.length>5) throw new Error('Please upload no more than 5 photos.');
+
+  // Create request through secure RPC. This does not require public SELECT access.
+  const requestRes=await fetch(cfg.supabaseUrl+'/rest/v1/rpc/create_estimate_request',{
+    method:'POST',
+    headers:{
+      apikey:cfg.supabaseAnonKey,
+      Authorization:'Bearer '+cfg.supabaseAnonKey,
+      'Content-Type':'application/json'
+    },
+    body:JSON.stringify({
+      p_name:name,
+      p_phone:phone,
+      p_service:service,
+      p_zip_code:zip,
+      p_details:details,
+      p_preferred_contact:preferred
+    })
+  });
+
+  if(!requestRes.ok){
+    let detail='';
+    try{detail=(await requestRes.json())?.message||''}catch(_){}
+    throw new Error(detail||'Could not create request.');
+  }
+
+  const rpcData=await requestRes.json();
+  const requestId=Number(
+    Array.isArray(rpcData)
+      ? rpcData[0]
+      : (rpcData?.create_estimate_request ?? rpcData)
+  );
+  if(!Number.isFinite(requestId)||requestId<=0) throw new Error('Request ID was not returned.');
+
+  let uploaded=0;
+  for(const file of photos){
+    if(file.size>10*1024*1024) throw new Error(file.name+' is larger than 10 MB.');
+    if(!['image/jpeg','image/png','image/webp','image/heic','image/heif'].includes(file.type)){
+      throw new Error(file.name+' is not a supported image type.');
+    }
+
+    const safeName=(file.name||'photo').replace(/[^a-zA-Z0-9._-]/g,'_');
+    const storagePath=requestId+'/'+Date.now()+'-'+uploaded+'-'+safeName;
+
+    const uploadRes=await fetch(
+      cfg.supabaseUrl+'/storage/v1/object/estimate-photos/'+encodeURI(storagePath),
+      {
+        method:'POST',
+        headers:{
+          apikey:cfg.supabaseAnonKey,
+          Authorization:'Bearer '+cfg.supabaseAnonKey,
+          'Content-Type':file.type,
+          'x-upsert':'false'
+        },
+        body:file
+      }
+    );
+    if(!uploadRes.ok) throw new Error('Photo upload failed: '+file.name);
+
+    const photoRowRes=await fetch(cfg.supabaseUrl+'/rest/v1/estimate_photos',{
+      method:'POST',
+      headers:{
+        apikey:cfg.supabaseAnonKey,
+        Authorization:'Bearer '+cfg.supabaseAnonKey,
+        'Content-Type':'application/json',
+        Prefer:'return=minimal'
+      },
+      body:JSON.stringify({
+        request_id:requestId,
+        storage_path:storagePath,
+        file_name:file.name
+      })
+    });
+    if(!photoRowRes.ok) throw new Error('Photo record could not be saved.');
+    uploaded++;
+  }
+
+  if(msg){
+    msg.hidden=false;
+    msg.style.display='block';
+    msg.style.color='#257048';
+    msg.textContent=photos.length
+      ? '✓ Request sent successfully with '+uploaded+' photo'+(uploaded===1?'':'s')+'.'
+      : '✓ Request sent successfully.';
+  }
+  form.reset();
+  const preview=form.querySelector('#photoPreview');
+  if(preview) preview.innerHTML='';
+}
+const demoForm=document.querySelector('form[data-demo]');
+if(demoForm){
+  demoForm.addEventListener('submit',async e=>{
+    e.preventDefault();
+    const btn=demoForm.querySelector('button[type="submit"]');
+    const msg=document.getElementById('formMsg');
+    btn.disabled=true;btn.textContent='Sending...';
+    if(msg){msg.hidden=true;msg.style.display='none';}
+    try{
+      await sendEstimateForm(demoForm,msg,btn);
+    }catch(err){
+      console.error(err);
+      if(msg){
+        msg.hidden=false;msg.style.display='block';msg.style.color='#b33631';
+        msg.textContent='Could not send the request. '+(err?.message||'Please try again.');
+      }
+    }finally{
+      btn.disabled=false;btn.textContent='Send My Request';
+    }
+  });
+}
+</script><footer class="footer"><div class="wrap footer-grid"><div><a class="brand" href="index.html"><span class="brandmark">UH</span><span>UZHANDY <small>USA LLC</small></span></a><p>Handyman services for Denver, Aurora and confirmed surrounding service areas.</p><b style="color:white">uzhandy.us</b></div><div><h4>Explore</h4><a href="services.html">Services</a><a href="projects.html">Projects</a><a href="free-estimate.html">Free Estimate</a></div><div><h4>Contact</h4><a href="tel:+13034190338">303-419-0338</a><a href="sms:+13034190338">Text Us</a></div></div></footer><div class="mobilebar"><a href="tel:+13034190338">☎<br>CALL</a><a href="sms:+13034190338">💬<br>TEXT</a><a href="free-estimate.html">FREE ESTIMATE</a></div><script src="site.js"></script></body></html>
